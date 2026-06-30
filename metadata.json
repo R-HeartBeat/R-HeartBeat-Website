@@ -1,0 +1,6 @@
+{
+  "name": "R-HeartBeat",
+  "description": "Precision Product Innovation & Global Consultancy corporate portal with interactive showcases, solutions catalog, leadership board, and consultation scheduler.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
