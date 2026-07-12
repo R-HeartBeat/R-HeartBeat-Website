@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type PageId = 'home' | 'about' | 'solutions' | 'contact';
+export type PageId = 'home' | 'about' | 'solutions' | 'contact' | 'dashboard';
 
 export interface Leader {
   id: string;
@@ -52,4 +52,9 @@ export interface ConsultationRequest {
   message: string;
   preferredDate: string;
   preferredTime: string;
+}
+
+export interface RegistrationRequest extends ConsultationRequest {
+  id: string;
+  createdAt: string;
 }
