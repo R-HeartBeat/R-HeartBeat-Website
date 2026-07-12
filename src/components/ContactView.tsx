@@ -53,6 +53,7 @@ export default function ContactView({ setCurrentPage }: ContactViewProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<ConsultationRequest | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [confirmationText, setConfirmationText] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,27 +70,59 @@ export default function ContactView({ setCurrentPage }: ContactViewProps) {
     }
 
     setErrorMsg('');
-    setIsSubmitting(true);
 
-    // Simulate server side submission
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmittedRequest({
-        fullName,
-        email,
-        company,
-        serviceInterest,
-        message,
-        preferredDate: `${AVAILABLE_DAYS[selectedDayIdx].name}, ${AVAILABLE_DAYS[selectedDayIdx].dateStr}`,
-        preferredTime: selectedTimeSlot
+    setIsSubmitting(true);
+    setConfirmationText('Saving your registration to the CRM. This may take a moment.');
+
+    const payload = {
+      fullName,
+      email,
+      company,
+      serviceInterest,
+      message,
+      preferredDate: `${AVAILABLE_DAYS[selectedDayIdx].name}, ${AVAILABLE_DAYS[selectedDayIdx].dateStr}`,
+      preferredTime: selectedTimeSlot,
+    };
+
+    fetch('/api/registrations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json();
+          throw new Error(body.error || 'Failed to save registration.');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setSubmittedRequest({
+          fullName,
+          email,
+          company,
+          serviceInterest,
+          message,
+          preferredDate: payload.preferredDate,
+          preferredTime: payload.preferredTime,
+        });
+        setConfirmationText('Registration saved successfully. A copy has been stored in the CRM.');
+
+        setFullName('');
+        setEmail('');
+        setCompany('');
+        setMessage('');
+      })
+      .catch((error) => {
+        console.error(error);
+        setErrorMsg(error.message || 'Unable to save your registration.');
+        setConfirmationText('');
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-      
-      // Clear forms
-      setFullName('');
-      setEmail('');
-      setCompany('');
-      setMessage('');
-    }, 1500);
   };
 
   return (
@@ -320,6 +353,12 @@ export default function ContactView({ setCurrentPage }: ContactViewProps) {
                   {errorMsg && (
                     <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 text-xs font-sans">
                       {errorMsg}
+                    </div>
+                  )}
+
+                  {confirmationText && (
+                    <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 text-xs font-sans">
+                      {confirmationText}
                     </div>
                   )}
 

@@ -4,7 +4,7 @@
  */
 
 import { PageId } from '../types';
-import { Activity, Home, Info, Cpu, Mail } from 'lucide-react';
+import { Activity, Home, Info, Cpu, Mail, Table } from 'lucide-react';
 
 interface HeaderProps {
   currentPage: PageId;
@@ -64,6 +64,17 @@ export default function Header({ currentPage, setCurrentPage, onContactClick }: 
               }`}
             >
               Solutions
+            </button>
+            <button 
+              id="nav-dashboard"
+              onClick={() => setCurrentPage('dashboard')}
+              className={`font-sans text-[15px] font-semibold transition-colors duration-200 cursor-pointer pb-1 border-b-2 ${
+                currentPage === 'dashboard' 
+                  ? 'text-[#e11d48] border-[#e11d48]' 
+                  : 'text-white/80 border-transparent hover:text-white'
+              }`}
+            >
+              Dashboard
             </button>
             <button 
               id="nav-contact"
@@ -130,6 +141,18 @@ export default function Header({ currentPage, setCurrentPage, onContactClick }: 
           <span className="font-sans text-[10px] font-medium">Solutions</span>
         </button>
         
+        <button 
+          id="mobile-nav-dashboard"
+          onClick={() => setCurrentPage('dashboard')}
+          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+            currentPage === 'dashboard' 
+              ? 'text-[#b80035] bg-[#ffdada]/30' 
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Table className="w-5 h-5 mb-0.5" />
+          <span className="font-sans text-[10px] font-medium">Dashboard</span>
+        </button>
         <button 
           id="mobile-nav-contact"
           onClick={() => setCurrentPage('contact')}

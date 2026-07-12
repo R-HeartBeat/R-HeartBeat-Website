@@ -10,6 +10,7 @@ import HomeView from './components/HomeView';
 import AboutView from './components/AboutView';
 import SolutionsView from './components/SolutionsView';
 import ContactView from './components/ContactView';
+import DashboardView from './components/DashboardView';
 import Footer from './components/Footer';
 
 export default function App() {
@@ -30,6 +31,8 @@ export default function App() {
         return <SolutionsView setCurrentPage={setCurrentPage} />;
       case 'contact':
         return <ContactView setCurrentPage={setCurrentPage} />;
+      case 'dashboard':
+        return <DashboardView setCurrentPage={setCurrentPage} />;
       default:
         return <AboutView setCurrentPage={setCurrentPage} />;
     }
