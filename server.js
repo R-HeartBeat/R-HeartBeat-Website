@@ -211,6 +211,16 @@ app.get('/api/test-email', async (_req, res) => {
   }
 });
 
+// Serve static frontend assets from dist in production
+const distPath = path.join(__dirname, 'dist');
+app.use(express.static(distPath));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  return res.sendFile(path.join(distPath, 'index.html'));
+});
+
 app.listen(PORT, () => {
   console.log(`CRM server listening on port ${PORT}`);
 });
