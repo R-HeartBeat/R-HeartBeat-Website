@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { RegistrationRequest, PageId } from '../types';
-import { Table, RefreshCw, Database, Search, Filter, Send } from 'lucide-react';
+import { Table, RefreshCw, Database, Search, Filter, Send, Edit3, Trash2, Check, X } from 'lucide-react';
 
 interface DashboardViewProps {
   setCurrentPage: (page: PageId) => void;
@@ -14,6 +14,20 @@ export default function DashboardView({ setCurrentPage }: DashboardViewProps) {
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [testEmailStatus, setTestEmailStatus] = useState('');
   const [error, setError] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editRecord, setEditRecord] = useState<Partial<RegistrationRequest>>({});
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const parseApiResponse = async (response: Response) => {
+    const text = await response.text();
+    try {
+      const json = JSON.parse(text);
+      return { ok: response.ok, body: json };
+    } catch {
+      return { ok: response.ok, body: { error: text || 'Unexpected API response.' } };
+    }
+  };
 
   const loadRegistrations = async () => {
     setIsLoading(true);
@@ -21,12 +35,11 @@ export default function DashboardView({ setCurrentPage }: DashboardViewProps) {
 
     try {
       const response = await fetch('/api/registrations');
-      if (!response.ok) {
-        const body = await response.json();
+      const { ok, body } = await parseApiResponse(response);
+      if (!ok) {
         throw new Error(body.error || 'Unable to load registrations.');
       }
-      const data = await response.json();
-      setRegistrations(data.registrations || []);
+      setRegistrations(body.registrations || []);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Unable to load registration records.');
@@ -41,9 +54,9 @@ export default function DashboardView({ setCurrentPage }: DashboardViewProps) {
 
     try {
       const response = await fetch('/api/test-email');
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Test email failed.');
+      const { ok, body } = await parseApiResponse(response);
+      if (!ok) {
+        throw new Error(body.error || 'Test email failed.');
       }
       setTestEmailStatus('Test email sent successfully. Check your inbox.');
     } catch (err) {
@@ -52,6 +65,79 @@ export default function DashboardView({ setCurrentPage }: DashboardViewProps) {
     } finally {
       setIsTestingEmail(false);
       setTimeout(() => setTestEmailStatus(''), 7000);
+    }
+  };
+
+  const startEdit = (registration: RegistrationRequest) => {
+    setEditingId(registration.id);
+    setEditRecord({ ...registration });
+    setError('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditRecord({});
+  };
+
+  const updateEditField = (field: keyof RegistrationRequest, value: string) => {
+    setEditRecord((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+
+    setIsSavingEdit(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/registrations/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editRecord),
+      });
+      const { ok, body } = await parseApiResponse(response);
+
+      if (!ok) {
+        throw new Error(body.error || 'Unable to save changes.');
+      }
+
+      await loadRegistrations();
+      setEditingId(null);
+      setEditRecord({});
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Unable to save changes.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const deleteRecord = async (id: string) => {
+    const confirmed = window.confirm('Delete this registration record?');
+    if (!confirmed) return;
+
+    setDeletingId(id);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/registrations/${id}`, {
+        method: 'DELETE',
+      });
+      const { ok, body } = await parseApiResponse(response);
+
+      if (!ok) {
+        throw new Error(body.error || 'Unable to delete record.');
+      }
+
+      setRegistrations((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Unable to delete record.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -167,24 +253,25 @@ export default function DashboardView({ setCurrentPage }: DashboardViewProps) {
                 <th className="px-4 py-4">Service Interest</th>
                 <th className="px-4 py-4">Preferred Slot</th>
                 <th className="px-4 py-4">Message</th>
+                <th className="px-4 py-4">Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
                     Loading registration records...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-red-600">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-red-600">
                     {error}
                   </td>
                 </tr>
               ) : filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
                     No registrations match the current search or filter.
                   </td>
                 </tr>
@@ -192,12 +279,130 @@ export default function DashboardView({ setCurrentPage }: DashboardViewProps) {
                 filteredRegistrations.map((registration) => (
                   <tr key={registration.id} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-4 align-top text-[11px] text-slate-500 font-medium">{new Date(registration.createdAt).toLocaleString()}</td>
-                    <td className="px-4 py-4 align-top font-semibold text-slate-900">{registration.fullName}</td>
-                    <td className="px-4 py-4 align-top text-slate-600">{registration.email}</td>
-                    <td className="px-4 py-4 align-top text-slate-600">{registration.company}</td>
-                    <td className="px-4 py-4 align-top text-slate-600">{registration.serviceInterest}</td>
-                    <td className="px-4 py-4 align-top text-slate-600">{registration.preferredDate} · {registration.preferredTime}</td>
-                    <td className="px-4 py-4 align-top text-slate-600 max-w-xl break-words">{registration.message}</td>
+                    <td className="px-4 py-4 align-top font-semibold text-slate-900">
+                      {editingId === registration.id ? (
+                        <input
+                          type="text"
+                          value={editRecord.fullName ?? ''}
+                          onChange={(e) => updateEditField('fullName', e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none"
+                        />
+                      ) : (
+                        registration.fullName
+                      )}
+                    </td>
+                    <td className="px-4 py-4 align-top text-slate-600">
+                      {editingId === registration.id ? (
+                        <input
+                          type="email"
+                          value={editRecord.email ?? ''}
+                          onChange={(e) => updateEditField('email', e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none"
+                        />
+                      ) : (
+                        registration.email
+                      )}
+                    </td>
+                    <td className="px-4 py-4 align-top text-slate-600">
+                      {editingId === registration.id ? (
+                        <input
+                          type="text"
+                          value={editRecord.company ?? ''}
+                          onChange={(e) => updateEditField('company', e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none"
+                        />
+                      ) : (
+                        registration.company
+                      )}
+                    </td>
+                    <td className="px-4 py-4 align-top text-slate-600">
+                      {editingId === registration.id ? (
+                        <input
+                          type="text"
+                          value={editRecord.serviceInterest ?? ''}
+                          onChange={(e) => updateEditField('serviceInterest', e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none"
+                        />
+                      ) : (
+                        registration.serviceInterest
+                      )}
+                    </td>
+                    <td className="px-4 py-4 align-top text-slate-600">
+                      {editingId === registration.id ? (
+                        <div className="grid gap-2">
+                          <input
+                            type="text"
+                            value={editRecord.preferredDate ?? ''}
+                            onChange={(e) => updateEditField('preferredDate', e.target.value)}
+                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none"
+                            placeholder="Preferred date"
+                          />
+                          <input
+                            type="text"
+                            value={editRecord.preferredTime ?? ''}
+                            onChange={(e) => updateEditField('preferredTime', e.target.value)}
+                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none"
+                            placeholder="Preferred time"
+                          />
+                        </div>
+                      ) : (
+                        `${registration.preferredDate} · ${registration.preferredTime}`
+                      )}
+                    </td>
+                    <td className="px-4 py-4 align-top text-slate-600 max-w-xl break-words">
+                      {editingId === registration.id ? (
+                        <textarea
+                          value={editRecord.message ?? ''}
+                          onChange={(e) => updateEditField('message', e.target.value)}
+                          className="w-full min-h-[88px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none"
+                        />
+                      ) : (
+                        registration.message
+                      )}
+                    </td>
+                    <td className="px-4 py-4 align-top text-slate-600">
+                      {editingId === registration.id ? (
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={saveEdit}
+                            disabled={isSavingEdit}
+                            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b1c30] px-3 py-2 text-[11px] font-bold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            {isSavingEdit ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(registration)}
+                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteRecord(registration.id)}
+                            disabled={deletingId === registration.id}
+                            className="inline-flex items-center gap-2 rounded-full bg-[#b80035] px-3 py-2 text-[11px] font-bold text-white transition hover:bg-[#e11d48] disabled:opacity-60"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
