@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -185,6 +186,53 @@ app.get('/api/registrations', async (req, res) => {
   } catch (error) {
     console.error('Failed to read registrations:', error);
     return res.status(500).json({ error: 'Unable to read registrations.' });
+  }
+});
+
+app.put('/api/registrations/:id', async (req, res) => {
+  const id = req.params.id || req.query.id;
+  if (!id || typeof id !== 'string') {
+    return res.status(400).json({ error: 'Missing registration id.' });
+  }
+
+  try {
+    const registrations = await readRegistrations();
+    const index = registrations.findIndex((item) => item.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Registration not found.' });
+    }
+
+    registrations[index] = {
+      ...registrations[index],
+      ...req.body,
+    };
+
+    await writeRegistrations(registrations);
+    return res.json({ success: true, registration: registrations[index] });
+  } catch (error) {
+    console.error('Failed to update registration:', error);
+    return res.status(500).json({ error: 'Unable to update registration.' });
+  }
+});
+
+app.delete('/api/registrations/:id', async (req, res) => {
+  const id = req.params.id || req.query.id;
+  if (!id || typeof id !== 'string') {
+    return res.status(400).json({ error: 'Missing registration id.' });
+  }
+
+  try {
+    const registrations = await readRegistrations();
+    const filtered = registrations.filter((item) => item.id !== id);
+    if (filtered.length === registrations.length) {
+      return res.status(404).json({ error: 'Registration not found.' });
+    }
+
+    await writeRegistrations(filtered);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete registration:', error);
+    return res.status(500).json({ error: 'Unable to delete registration.' });
   }
 });
 
